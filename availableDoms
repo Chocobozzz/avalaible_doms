@@ -1,0 +1,124 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+use LWP::UserAgent;
+use Getopt::Long;
+use HTTP::Request::Common qw( POST );
+use JSON qw( decode_json );
+use Term::ANSIColor;
+
+# Print help
+sub help {
+    print("AvailableDoms - See if domains are available
+
+        Usage :
+
+        -f, --file FILE Get the list of domains of a file
+        -d, --domain DOMAIN Check the availability of this domain
+        \n\n");
+}
+
+my $ua = LWP::UserAgent->new(agent => 'Mozilla/18.0.1 [fr] (X11; I; Linux 2.2.16 i686; Nav)');
+
+my @domains;
+my $url = 'https://www.gandi.net/ajax/domain_search';
+
+my %opts;
+GetOptions(\%opts, 'help', 'file=s', 'domain=s', 'color');
+
+if($opts{help}){
+    help();
+}
+elsif($opts{file}){
+    my %result;
+
+    open (my $file, '<', $opts{file});
+
+    my $i=0;
+
+    while(<$file>) {
+        push @domains, $_ . "|golive";
+        $i++;
+
+        if($i == 50){
+            %result = query(@domains);
+            printDoms(\%result);
+            
+            $i=0;
+            @domains = ();
+        }
+    }
+            
+    %result = query(@domains);
+    printDoms(\%result);
+
+    close ($file);
+
+}
+elsif($opts{domain}){
+    push @domains, $opts{domain} . "|golive";
+
+    my %result = query(@domains);
+    printDoms(\%result);
+}
+else{
+    print "I need an argument.\n\n";
+    help();
+    exit -1;
+}
+
+# Search the availability of a list of domains 
+sub query {
+    my %result;
+
+    my @domains = @_;
+    my %hash_param = ("domains[]" => \@domains);
+    my $resp = $ua->post($url, \%hash_param);
+
+    @domains = ();
+
+    if ($resp->is_success) {
+        my $json_response = decode_json($resp->decoded_content);
+
+        while(my ($key, $value) = each(%$json_response)){
+            if($value eq "pending"){
+                push @domains, "$key|golive";
+            }
+            else {
+                $result{$key} = $value;
+            }
+        }
+
+        if(@domains){
+            %result = (%result, query(@domains));
+        }
+    }
+    else {
+        print "HTTP POST error code: ", $resp->code, "\n";
+        print "HTTP POST error message: ", $resp->message, "\n";
+    }
+
+    return %result; 
+}
+
+
+# Print the result of a reasearch
+sub printDoms {
+    my $hash_dom = shift;
+
+    for my $key (sort keys %$hash_dom){
+        if($opts{color}){
+            if($$hash_dom{$key} eq "unavailable"){
+                print colored ['red'], "$key => $$hash_dom{$key}\n";
+            }
+            elsif($$hash_dom{$key} eq "available"){
+                print colored ['green'], "$key => $$hash_dom{$key}\n";
+            }
+        }
+        else{
+            print "$key => $$hash_dom{$key}\n";
+        }
+    }
+}
+
