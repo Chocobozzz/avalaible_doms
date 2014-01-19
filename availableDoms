@@ -24,12 +24,15 @@ my $ua = LWP::UserAgent->new(agent => 'Mozilla/18.0.1 [fr] (X11; I; Linux 2.2.16
 my @domains;
 my $url = 'https://www.gandi.net/ajax/domain_search';
 
+# Get options
 my %opts;
 GetOptions(\%opts, 'help', 'file=s', 'domain=s', 'color');
 
+# Print help ?
 if($opts{help}){
     help();
 }
+# Domain names are in a file
 elsif($opts{file}){
     my %result;
 
@@ -38,13 +41,17 @@ elsif($opts{file}){
     my $i=0;
 
     while(<$file>) {
+        # We have to add |golive after the domain name
         push @domains, $_ . "|golive";
         $i++;
 
+        # We make a query with 50 maximum domain names
         if($i == 50){
+            # Do the query and print the result
             %result = query(@domains);
             printDoms(\%result);
             
+            # Reset
             $i=0;
             @domains = ();
         }
@@ -54,14 +61,15 @@ elsif($opts{file}){
     printDoms(\%result);
 
     close ($file);
-
 }
+# The domain name is in the argument
 elsif($opts{domain}){
     push @domains, $opts{domain} . "|golive";
 
     my %result = query(@domains);
     printDoms(\%result);
 }
+# Error
 else{
     print "I need an argument.\n\n";
     help();
@@ -70,17 +78,21 @@ else{
 
 # Search the availability of a list of domains 
 sub query {
+    my @domains = @_;
     my %result;
 
-    my @domains = @_;
+    # Params to send to gandi
     my %hash_param = ("domains[]" => \@domains);
+    # We execute the query
     my $resp = $ua->post($url, \%hash_param);
 
     @domains = ();
 
     if ($resp->is_success) {
+        # Decode the json response (returns a hash reference)
         my $json_response = decode_json($resp->decoded_content);
 
+        # Sometimes, the result for a domain name is "pending" so we have to execute the query again
         while(my ($key, $value) = each(%$json_response)){
             if($value eq "pending"){
                 push @domains, "$key|golive";
@@ -90,6 +102,7 @@ sub query {
             }
         }
 
+        # If we have to search again for certain domain names we execute another query
         if(@domains){
             %result = (%result, query(@domains));
         }
@@ -107,7 +120,9 @@ sub query {
 sub printDoms {
     my $hash_dom = shift;
 
+    # We sort the result
     for my $key (sort keys %$hash_dom){
+        # With color ?
         if($opts{color}){
             if($$hash_dom{$key} eq "unavailable"){
                 print colored ['red'], "$key => $$hash_dom{$key}\n";
