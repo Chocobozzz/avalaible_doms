@@ -1,3 +1,5 @@
+#!/usr/bin/sh
+
 rm ndm2.txt;
 rm ndm3.txt;
 
