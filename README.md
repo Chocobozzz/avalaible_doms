@@ -1,7 +1,7 @@
 # Available Domain Names
 
 ## HELP
-AvailableDoms - See if a domain is available
+AvailableDoms - See if a list of domain names are available or not
 
     Usage :
 
