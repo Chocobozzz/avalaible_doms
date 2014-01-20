@@ -28,6 +28,9 @@ my $url = 'https://www.gandi.net/ajax/domain_search';
 my %opts;
 GetOptions(\%opts, 'help', 'file=s', 'domain=s', 'color');
 
+my $nb_max = 1000;
+
+
 # Print help ?
 if($opts{help}){
     help();
@@ -45,8 +48,8 @@ elsif($opts{file}){
         push @domains, $_ . "|golive";
         $i++;
 
-        # We make a query with 50 maximum domain names
-        if($i == 50){
+        # We make a query with $nb_max maximum domain names
+        if($i == $nb_max){
             # Do the query and print the result
             %result = query(@domains);
             printDoms(\%result);
