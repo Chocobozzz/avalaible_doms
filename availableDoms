@@ -7,6 +7,7 @@ use Getopt::Long;
 use HTTP::Request::Common qw( POST );
 use JSON qw( decode_json );
 use Term::ANSIColor;
+use Time::HiRes qw( usleep );
 
 # Print help
 sub help {
@@ -28,7 +29,7 @@ my $url = 'https://www.gandi.net/ajax/domain_search';
 my %opts;
 GetOptions(\%opts, 'help', 'file=s', 'domain=s', 'color');
 
-my $nb_max = 1000;
+my $nb_max = 50;
 
 
 # Print help ?
@@ -37,40 +38,48 @@ if($opts{help}){
 }
 # Domain names are in a file
 elsif($opts{file}){
-    my %result;
+    my $result;
 
     open (my $file, '<', $opts{file});
 
     my $i=0;
 
     while(<$file>) {
+        chomp;
         # We have to add |golive after the domain name
         push @domains, $_ . "|golive";
         $i++;
 
         # We make a query with $nb_max maximum domain names
-        if($i == $nb_max){
-            # Do the query and print the result
-            %result = query(@domains);
-            printDoms(\%result);
-            
+        if($i >= $nb_max){
+            # Do the query (quickly ?)            
+            ($result, @domains) = query(@domains);
+
             # Reset
-            $i=0;
-            @domains = ();
+            $i=@domains;
+
+            # Print the result
+            printDoms($result);
         }
     }
-            
-    %result = query(@domains);
-    printDoms(\%result);
+
+    while(@domains){
+        ($result, @domains) = query(@domains);
+        printDoms($result);
+    }
 
     close ($file);
 }
 # The domain name is in the argument
 elsif($opts{domain}){
+    my $result;
+
     push @domains, $opts{domain} . "|golive";
 
-    my %result = query(@domains);
-    printDoms(\%result);
+    while(@domains){
+        ($result, @domains) = query(@domains);
+        printDoms($result);
+    }
 }
 # Error
 else{
@@ -104,18 +113,13 @@ sub query {
                 $result{$key} = $value;
             }
         }
-
-        # If we have to search again for certain domain names we execute another query
-        if(@domains){
-            %result = (%result, query(@domains));
-        }
     }
     else {
         print "HTTP POST error code: ", $resp->code, "\n";
         print "HTTP POST error message: ", $resp->message, "\n";
     }
 
-    return %result; 
+    return (\%result, @domains); 
 }
 
 
