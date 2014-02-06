@@ -63,6 +63,7 @@ elsif($opts{file}){
         }
     }
 
+    # While there are domain names, we make queries
     while(@domains){
         ($result, @domains) = query(@domains);
         printDoms($result);
@@ -70,7 +71,7 @@ elsif($opts{file}){
 
     close ($file);
 }
-# The domain name is in the argument
+# The domain name is the argument
 elsif($opts{domain}){
     my $result;
 
@@ -88,7 +89,7 @@ else{
     exit -1;
 }
 
-# Search the availability of a list of domains 
+# Search the availability of a list of domain names 
 sub query {
     my @domains = @_;
     my %result;
@@ -98,7 +99,7 @@ sub query {
     # We execute the query
     my $resp = $ua->post($url, \%hash_param);
 
-    @domains = ();
+    my @pending_domains;
 
     if ($resp->is_success) {
         # Decode the json response (returns a hash reference)
@@ -107,7 +108,7 @@ sub query {
         # Sometimes, the result for a domain name is "pending" so we have to execute the query again
         while(my ($key, $value) = each(%$json_response)){
             if($value eq "pending"){
-                push @domains, "$key|golive";
+                push @pending_domains, "$key|golive";
             }
             else {
                 $result{$key} = $value;
@@ -119,7 +120,7 @@ sub query {
         print "HTTP POST error message: ", $resp->message, "\n";
     }
 
-    return (\%result, @domains); 
+    return (\%result, @pending_domains); 
 }
 
 
