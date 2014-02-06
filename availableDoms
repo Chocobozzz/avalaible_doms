@@ -11,52 +11,58 @@ use Time::HiRes qw( usleep );
 
 # Print help
 sub help {
-    print("AvailableDoms - See if domains are available
+    print(
+        "AvailableDoms - See if domains are available
 
         Usage :
 
         -f, --file FILE Get the list of domains of a file
         -d, --domain DOMAIN Check the availability of this domain
-        \n\n");
+        \n\n"
+    );
 }
 
-my $ua = LWP::UserAgent->new(agent => 'Mozilla/18.0.1 [fr] (X11; I; Linux 2.2.16 i686; Nav)');
+my $ua =
+  LWP::UserAgent->new(
+    agent => 'Mozilla/18.0.1 [fr] (X11; I; Linux 2.2.16 i686; Nav)' );
 
 my @domains;
 my $url = 'https://www.gandi.net/ajax/domain_search';
 
 # Get options
 my %opts;
-GetOptions(\%opts, 'help', 'file=s', 'domain=s', 'color');
+GetOptions( \%opts, 'help', 'file=s', 'domain=s', 'color' );
 
 my $nb_max = 50;
 
-
 # Print help ?
-if($opts{help}){
+if ( $opts{help} ) {
     help();
 }
+
 # Domain names are in a file
-elsif($opts{file}){
+elsif ( $opts{file} ) {
     my $result;
 
-    open (my $file, '<', $opts{file});
+    open( my $file, '<', $opts{file} );
 
-    my $i=0;
+    my $i = 0;
 
-    while(<$file>) {
+    while (<$file>) {
         chomp;
+
         # We have to add |golive after the domain name
         push @domains, $_ . "|golive";
         $i++;
 
         # We make a query with $nb_max maximum domain names
-        if($i >= $nb_max){
-            # Do the query (quickly ?)            
-            ($result, @domains) = query(@domains);
+        if ( $i >= $nb_max ) {
+
+            # Do the query (quickly ?)
+            ( $result, @domains ) = query(@domains);
 
             # Reset
-            $i=@domains;
+            $i = @domains;
 
             # Print the result
             printDoms($result);
@@ -64,50 +70,54 @@ elsif($opts{file}){
     }
 
     # While there are domain names, we make queries
-    while(@domains){
-        ($result, @domains) = query(@domains);
+    while (@domains) {
+        ( $result, @domains ) = query(@domains);
         printDoms($result);
     }
 
-    close ($file);
+    close($file);
 }
+
 # The domain name is the argument
-elsif($opts{domain}){
+elsif ( $opts{domain} ) {
     my $result;
 
     push @domains, $opts{domain} . "|golive";
 
-    while(@domains){
-        ($result, @domains) = query(@domains);
+    while (@domains) {
+        ( $result, @domains ) = query(@domains);
         printDoms($result);
     }
 }
+
 # Error
-else{
+else {
     print "I need an argument.\n\n";
     help();
     exit -1;
 }
 
-# Search the availability of a list of domain names 
+# Search the availability of a list of domain names
 sub query {
     my @domains = @_;
     my %result;
 
     # Params to send to gandi
-    my %hash_param = ("domains[]" => \@domains);
+    my %hash_param = ( "domains[]" => \@domains );
+
     # We execute the query
-    my $resp = $ua->post($url, \%hash_param);
+    my $resp = $ua->post( $url, \%hash_param );
 
     my @pending_domains;
 
-    if ($resp->is_success) {
-        # Decode the json response (returns a hash reference)
-        my $json_response = decode_json($resp->decoded_content);
+    if ( $resp->is_success ) {
 
-        # Sometimes, the result for a domain name is "pending" so we have to execute the query again
-        while(my ($key, $value) = each(%$json_response)){
-            if($value eq "pending"){
+        # Decode the json response (returns a hash reference)
+        my $json_response = decode_json( $resp->decoded_content );
+
+# Sometimes, the result for a domain name is "pending" so we have to execute the query again
+        while ( my ( $key, $value ) = each(%$json_response) ) {
+            if ( $value eq "pending" ) {
                 push @pending_domains, "$key|golive";
             }
             else {
@@ -116,30 +126,30 @@ sub query {
         }
     }
     else {
-        print "HTTP POST error code: ", $resp->code, "\n";
+        print "HTTP POST error code: ",    $resp->code,    "\n";
         print "HTTP POST error message: ", $resp->message, "\n";
     }
 
-    return (\%result, @pending_domains); 
+    return ( \%result, @pending_domains );
 }
-
 
 # Print the result of a reasearch
 sub printDoms {
     my $hash_dom = shift;
 
     # We sort the result
-    for my $key (sort keys %$hash_dom){
+    for my $key ( sort keys %$hash_dom ) {
+
         # With color ?
-        if($opts{color}){
-            if($$hash_dom{$key} eq "unavailable"){
+        if ( $opts{color} ) {
+            if ( $$hash_dom{$key} eq "unavailable" ) {
                 print colored ['red'], "$key => $$hash_dom{$key}\n";
             }
-            elsif($$hash_dom{$key} eq "available"){
+            elsif ( $$hash_dom{$key} eq "available" ) {
                 print colored ['green'], "$key => $$hash_dom{$key}\n";
             }
         }
-        else{
+        else {
             print "$key => $$hash_dom{$key}\n";
         }
     }
